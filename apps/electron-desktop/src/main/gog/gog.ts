@@ -120,6 +120,47 @@ export async function clearGogAuthTokens(params: {
   }
 }
 
+async function clearGogAccountsBeforeAdd(params: {
+  gogBin: string;
+  openclawDir: string;
+  stateDir?: string;
+}): Promise<GogExecResult | null> {
+  const list = await runGog({
+    bin: params.gogBin,
+    args: ["auth", "list", "--json", "--no-input"],
+    cwd: params.openclawDir,
+    stateDir: params.stateDir,
+    timeoutMs: 15_000,
+  });
+  if (!list.ok) {
+    const msg = (list.stderr || list.stdout || "").trim();
+    return {
+      ...list,
+      stderr: `gog auth list failed: ${msg || "unknown error"}`,
+    };
+  }
+
+  const emails = parseGogAuthListEmails(list.stdout);
+  for (const email of emails) {
+    const res = await runGog({
+      bin: params.gogBin,
+      args: ["auth", "remove", email, "--force", "--no-input"],
+      cwd: params.openclawDir,
+      stateDir: params.stateDir,
+      timeoutMs: 15_000,
+    });
+    if (!res.ok) {
+      const msg = (res.stderr || res.stdout || "").trim();
+      return {
+        ...res,
+        stderr: `gog auth remove failed for ${email}: ${msg || "unknown error"}`,
+      };
+    }
+  }
+
+  return null;
+}
+
 const GOG_CREDENTIALS_HASH_FILE = "gog-credentials-hash";
 
 function fileHash(filePath: string): string {
@@ -174,4 +215,38 @@ export async function ensureGogCredentialsConfigured(params: {
       `[electron-desktop] gog auth credentials set failed: ${stderr || stdout || "unknown error"} (bin: ${params.gogBin})`
     );
   }
+}
+
+export async function runGogAuthAdd(params: {
+  gogBin: string;
+  openclawDir: string;
+  credentialsJsonPath: string;
+  stateDir: string;
+  account: string;
+  services: string;
+  noInput?: boolean;
+}): Promise<GogExecResult> {
+  await ensureGogCredentialsConfigured({
+    gogBin: params.gogBin,
+    openclawDir: params.openclawDir,
+    credentialsJsonPath: params.credentialsJsonPath,
+    stateDir: params.stateDir,
+  });
+
+  const cleanupError = await clearGogAccountsBeforeAdd(params);
+  if (cleanupError) {
+    return cleanupError;
+  }
+
+  const args = ["auth", "add", params.account, "--services", params.services];
+  if (params.noInput) {
+    args.push("--no-input");
+  }
+
+  return runGog({
+    bin: params.gogBin,
+    args,
+    cwd: params.openclawDir,
+    stateDir: params.stateDir,
+  });
 }

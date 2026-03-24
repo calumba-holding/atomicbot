@@ -8,7 +8,7 @@ import { checkBinaryExists } from "../ipc/exec";
 import type { GogHandlerParams } from "../ipc/types";
 import { ensureDir } from "../util/fs";
 import { getPlatform } from "../platform";
-import { ensureGogCredentialsConfigured, runGog } from "./gog";
+import { runGog, runGogAuthAdd } from "./gog";
 import type { GogExecResult } from "./types";
 
 const PREPARE_CMD = "cd apps/electron-desktop && npm run fetch:gog";
@@ -59,21 +59,15 @@ export function registerGogIpcHandlers(params: GogHandlerParams) {
         } satisfies GogExecResult;
       }
 
-      // Do this lazily (only when the user explicitly runs a gog command) to avoid spawning gog at
-      // app startup. On macOS, that can briefly show an extra bouncing Dock icon.
-      await ensureGogCredentialsConfigured({
+      return await runGogAuthAdd({
         gogBin,
         openclawDir,
         credentialsJsonPath: gogCredentialsPath,
         stateDir,
+        account,
+        services,
+        noInput,
       });
-
-      const args = ["auth", "add", account, "--services", services];
-      if (noInput) {
-        args.push("--no-input");
-      }
-      const res = await runGog({ bin: gogBin, args, cwd: openclawDir, stateDir });
-      return res;
     }
   );
 
