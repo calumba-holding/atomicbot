@@ -231,6 +231,16 @@ function stripJunkFiles(dir) {
       }
 
       if (!entry.isFile()) continue;
+      const lowerName = entry.name.toLowerCase();
+      if (lowerName.startsWith("rollup.config") || lowerName.startsWith("webpack.config")) {
+        try {
+          fs.unlinkSync(full);
+          stripped++;
+        } catch {
+          // Ignore failures while removing build config files.
+        }
+        continue;
+      }
       if (STRIP_EXACT_NAMES.has(entry.name)) {
         try {
           fs.unlinkSync(full);
@@ -240,9 +250,8 @@ function stripJunkFiles(dir) {
         }
         continue;
       }
-      const lower = entry.name.toLowerCase();
       for (const ext of STRIP_EXTENSIONS) {
-        if (!lower.endsWith(ext)) continue;
+        if (!lowerName.endsWith(ext)) continue;
         try {
           fs.unlinkSync(full);
           stripped++;
@@ -466,6 +475,22 @@ async function main() {
   }
 
   const distDir = path.join(outDir, "dist");
+
+  // Strip junk from vendored node_modules inside dist/extensions/ so
+  // build configs (rollup, webpack) don't trip up the esbuild analysis pass.
+  const distExtDir = path.join(distDir, "extensions");
+  if (fs.existsSync(distExtDir)) {
+    let extStripped = 0;
+    for (const ext of fs.readdirSync(distExtDir, { withFileTypes: true })) {
+      if (!ext.isDirectory()) continue;
+      const extNm = path.join(distExtDir, ext.name, "node_modules");
+      if (fs.existsSync(extNm)) extStripped += stripJunkFiles(extNm);
+    }
+    if (extStripped > 0)
+      console.log(
+        `[electron-desktop] Stripped ${extStripped} unnecessary files from dist extension node_modules`
+      );
+  }
   const entryJs = path.join(distDir, "entry.js");
   let externalPkgs = new Set(ALWAYS_KEEP_PACKAGES);
   let esbuild;
