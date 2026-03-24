@@ -128,6 +128,67 @@ function verifyControlUiBuilt() {
   }
 }
 
+function normalizeVendoredDistPackageSubpaths(distDir) {
+  if (!fs.existsSync(distDir)) {
+    return;
+  }
+
+  const specifierRewrites = new Map([["file-type/core.js", "file-type/core"]]);
+  const importRewrites = new Map([
+    ['import fileType from "file-type/core";', 'import * as fileType from "file-type/core";'],
+    ["import fileType from 'file-type/core';", "import * as fileType from 'file-type/core';"],
+  ]);
+  let rewrittenFiles = 0;
+  const queue = [distDir];
+
+  while (queue.length > 0) {
+    const currentDir = queue.pop();
+    if (!currentDir) continue;
+
+    let entries = [];
+    try {
+      entries = fs.readdirSync(currentDir, { withFileTypes: true });
+    } catch {
+      continue;
+    }
+
+    for (const entry of entries) {
+      const full = path.join(currentDir, entry.name);
+      if (entry.isDirectory()) {
+        queue.push(full);
+        continue;
+      }
+      if (!entry.isFile() || !entry.name.endsWith(".js")) continue;
+
+      let source;
+      try {
+        source = fs.readFileSync(full, "utf8");
+      } catch {
+        continue;
+      }
+
+      let nextSource = source;
+      for (const [from, to] of specifierRewrites) {
+        nextSource = nextSource.replaceAll(`"${from}"`, `"${to}"`);
+        nextSource = nextSource.replaceAll(`'${from}'`, `'${to}'`);
+      }
+      for (const [from, to] of importRewrites) {
+        nextSource = nextSource.replaceAll(from, to);
+      }
+      if (nextSource === source) continue;
+
+      fs.writeFileSync(full, nextSource);
+      rewrittenFiles++;
+    }
+  }
+
+  if (rewrittenFiles > 0) {
+    console.log(
+      `[electron-desktop] Normalized package export subpaths in ${rewrittenFiles} dist files`
+    );
+  }
+}
+
 function hoistPnpmVirtualStoreToRoot() {
   const pnpmHoistedDir = path.join(outDir, "node_modules", ".pnpm", "node_modules");
   if (!fs.existsSync(pnpmHoistedDir)) return;
@@ -496,6 +557,8 @@ async function main() {
   let esbuild;
   let effectiveExternals = resolveEsbuildExternals();
   const learnedAdaptiveExternals = new Set();
+
+  normalizeVendoredDistPackageSubpaths(distDir);
 
   if (fs.existsSync(entryJs)) {
     console.log("[electron-desktop] Bundling dist/ with esbuild...");
