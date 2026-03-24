@@ -1,4 +1,9 @@
-import { _electron as electron, type ElectronApplication, type Page } from "@playwright/test";
+import {
+  _electron as electron,
+  expect,
+  type ElectronApplication,
+  type Page,
+} from "@playwright/test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
@@ -157,16 +162,19 @@ export async function enterApiKey(page: Page, apiKey: string): Promise<void> {
 }
 
 export async function waitForModelSelect(page: Page): Promise<void> {
-  const el = page.locator('[aria-label="Model selection"]');
-  await el.waitFor({ state: "visible", timeout: 60_000 });
-  await page.locator('input[name="model"]').first().waitFor({ state: "attached", timeout: 30_000 });
+  const container = page.locator('[aria-label="Model selection"]');
+  await container.waitFor({ state: "visible", timeout: 60_000 });
+  await container.locator('button[aria-haspopup="listbox"]').first().waitFor({
+    state: "visible",
+    timeout: 30_000,
+  });
+  await expect(container.getByRole("button", { name: "Continue" })).toBeEnabled({
+    timeout: 30_000,
+  });
 }
 
 export async function selectFirstModel(page: Page): Promise<string> {
   await waitForModelSelect(page);
-  const firstRadio = page.locator('input[name="model"]').first();
-  const modelId = (await firstRadio.getAttribute("value")) ?? "";
-
   const container = page.locator('[aria-label="Model selection"]');
   const continueBtn = container.getByRole("button", { name: "Continue" });
 
@@ -184,7 +192,12 @@ export async function selectFirstModel(page: Page): Promise<string> {
     }
   }
 
-  return modelId;
+  const snap = await getConfig(page);
+  const config = (snap.config ?? {}) as Record<string, unknown>;
+  const agents = (config.agents ?? {}) as Record<string, unknown>;
+  const defaults = (agents.defaults ?? {}) as Record<string, unknown>;
+  const model = (defaults.model ?? {}) as Record<string, unknown>;
+  return typeof model.primary === "string" ? model.primary : "";
 }
 
 export async function waitForSkillsPage(page: Page): Promise<void> {
