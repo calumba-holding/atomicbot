@@ -5,6 +5,7 @@ import {
   closeApp,
   finishOnboarding,
   navigateToSkillsTab,
+  switchToInstalledSkills,
   getTestCredentials,
 } from "./helpers";
 
@@ -32,6 +33,7 @@ test.describe("Settings — skill modals (Skills tab)", () => {
     test.setTimeout(120_000);
     await finishOnboarding(page, creds!);
     await navigateToSkillsTab(page);
+    await switchToInstalledSkills(page);
   });
 
   test("search field is visible", async () => {

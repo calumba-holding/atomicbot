@@ -24,6 +24,70 @@ export type UpdateErrorPayload = {
 
 export type DesktopPlatform = "darwin" | "win32" | "linux";
 
+export type ClawHubSkillListEntry = {
+  slug: string;
+  displayName: string;
+  summary?: string;
+  latestVersion?: { version: string; createdAt: number } | null;
+  createdAt: number;
+  updatedAt: number;
+  ownerHandle?: string | null;
+  channel: string;
+  isOfficial: boolean;
+  verificationTier?: string | null;
+  executesCode?: boolean;
+  capabilityTags?: string[];
+  runtimeId?: string | null;
+};
+
+export type ClawHubSkillPackageDetail = {
+  slug: string;
+  displayName: string;
+  summary?: string;
+  latestVersion?: string | null;
+  createdAt: number;
+  updatedAt: number;
+  ownerHandle?: string | null;
+  owner?: {
+    handle?: string | null;
+    displayName?: string | null;
+    image?: string | null;
+  } | null;
+  channel: string;
+  isOfficial: boolean;
+  verificationTier?: string | null;
+  executesCode?: boolean;
+  capabilityTags?: string[];
+  runtimeId?: string | null;
+  tags?: Record<string, string>;
+  compatibility?: {
+    pluginApiRange?: string;
+    builtWithOpenClawVersion?: string;
+    minGatewayVersion?: string;
+  } | null;
+  capabilities?: {
+    executesCode?: boolean;
+    runtimeId?: string;
+    capabilityTags?: string[];
+    bundleFormat?: string;
+    hostTargets?: string[];
+    pluginKind?: string;
+    channels?: string[];
+    providers?: string[];
+    hooks?: string[];
+    bundledSkills?: string[];
+  } | null;
+  verification?: {
+    tier?: string;
+    scope?: string;
+    summary?: string;
+    sourceRepo?: string;
+    sourceCommit?: string;
+    hasProvenance?: boolean;
+    scanStatus?: string;
+  } | null;
+};
+
 export interface OpenclawDesktopApi {
   platform: DesktopPlatform;
   version: string;
@@ -125,6 +189,25 @@ export interface OpenclawDesktopApi {
     skills: Array<{ name: string; description: string; emoji: string; dirName: string }>;
   }>;
   removeCustomSkill: (dirName: string) => Promise<{ ok: boolean; error?: string }>;
+  clawhubListSkills: (params?: { limit?: number; nonSuspicious?: boolean }) => Promise<{
+    ok: boolean;
+    items: ClawHubSkillListEntry[];
+    error?: string;
+  }>;
+  clawhubSearchSkills: (params: {
+    query: string;
+    limit?: number;
+    nonSuspicious?: boolean;
+  }) => Promise<{
+    ok: boolean;
+    results: ClawHubSkillListEntry[];
+    error?: string;
+  }>;
+  clawhubGetSkillPackage: (params: { slug: string }) => Promise<{
+    ok: boolean;
+    package?: ClawHubSkillPackageDetail;
+    error?: string;
+  }>;
   whisperModelStatus: (params?: { model?: string }) => Promise<{
     modelReady: boolean;
     binReady: boolean;
@@ -235,6 +318,9 @@ export const DESKTOP_BRIDGE_KEYS: ReadonlyArray<keyof OpenclawDesktopApi> = [
   "installCustomSkill",
   "listCustomSkills",
   "removeCustomSkill",
+  "clawhubListSkills",
+  "clawhubSearchSkills",
+  "clawhubGetSkillPackage",
   "defenderStatus",
   "defenderApplyExclusions",
   "defenderDismiss",

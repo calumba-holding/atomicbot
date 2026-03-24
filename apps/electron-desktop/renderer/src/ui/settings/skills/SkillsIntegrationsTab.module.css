@@ -71,3 +71,43 @@
 .UiCustomSkillMenuWrap {
   position: relative;
 }
+
+/* ── Source toggle (ClawHub | Installed) ──────────────── */
+
+.UiSkillsModeToggleWrap {
+  margin-bottom: 16px;
+}
+
+.UiSkillsModeToggle {
+  display: flex;
+  gap: 0;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  padding: 3px;
+}
+
+.UiSkillsModeOption {
+  flex: 1;
+  padding: 7px 14px;
+  border: none;
+  border-radius: 7px;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition:
+    background 0.15s ease,
+    color 0.15s ease;
+  white-space: nowrap;
+}
+
+.UiSkillsModeOption:hover {
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.UiSkillsModeOption--active {
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+}

@@ -20,17 +20,20 @@ export function useCustomSkills(onError: (value: string | null) => void) {
     name: string;
   } | null>(null);
 
-  React.useEffect(() => {
+  const refreshCustomSkills = React.useCallback(async () => {
     const api = getDesktopApiOrNull();
     if (!api?.listCustomSkills) {
       return;
     }
-    void api.listCustomSkills().then((res) => {
-      if (res.ok && res.skills) {
-        setCustomSkills(res.skills);
-      }
-    });
+    const res = await api.listCustomSkills();
+    if (res.ok && res.skills) {
+      setCustomSkills(res.skills);
+    }
   }, []);
+
+  React.useEffect(() => {
+    void refreshCustomSkills();
+  }, [refreshCustomSkills]);
 
   const handleCustomSkillInstalled = React.useCallback((skill: CustomSkillMeta) => {
     setCustomSkills((prev) => {
@@ -92,6 +95,7 @@ export function useCustomSkills(onError: (value: string | null) => void) {
 
   return {
     customSkills,
+    refreshCustomSkills,
     showUploadModal,
     setShowUploadModal,
     handleCustomSkillInstalled,

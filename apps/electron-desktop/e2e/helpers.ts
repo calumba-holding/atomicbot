@@ -640,6 +640,25 @@ export async function navigateToSkillsTab(page: Page): Promise<void> {
   await page.waitForTimeout(500);
 }
 
+export async function switchSkillsSource(
+  page: Page,
+  source: "clawhub" | "installed"
+): Promise<void> {
+  const label = source === "clawhub" ? "ClawHub" : "Installed";
+  const tablist = page.locator('[role="tablist"][aria-label="Skills source"]');
+  const tab = tablist.getByRole("tab", { name: label, exact: true });
+  await tab.click();
+  await expect(tab).toHaveAttribute("aria-selected", "true");
+}
+
+export async function switchToInstalledSkills(page: Page): Promise<void> {
+  await switchSkillsSource(page, "installed");
+}
+
+export async function switchToClawHubSkills(page: Page): Promise<void> {
+  await switchSkillsSource(page, "clawhub");
+}
+
 // ---- IPC event simulation (main -> renderer) ----
 
 export async function simulateUpdaterEvent(

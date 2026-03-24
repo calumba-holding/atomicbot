@@ -10,7 +10,10 @@ import { useSkillModal } from "./useSkillModal";
 import { SkillsGrid } from "./SkillsGrid";
 import { SkillModals } from "./SkillModals";
 import { CustomSkillUploadModal } from "./CustomSkillUploadModal";
+import { ClawHubTab } from "./clawhub";
 import type { GatewayRpc, ConfigSnapshotLike } from "./skillDefinitions";
+
+type SkillsSubTab = "installed" | "clawhub";
 
 // ── Main tab component ───────────────────────────────────────────────
 
@@ -39,6 +42,7 @@ export function SkillsIntegrationsTab(props: {
   });
 
   const [searchQuery, setSearchQuery] = React.useState("");
+  const [activeSubTab, setActiveSubTab] = React.useState<SkillsSubTab>("clawhub");
 
   return (
     <div className={ps.UiSettingsContentInner}>
@@ -55,55 +59,85 @@ export function SkillsIntegrationsTab(props: {
         </div>
       )}
 
-      <div className="UiInputRow">
-        <TextInput
-          type="text"
-          value={searchQuery}
-          onChange={setSearchQuery}
-          placeholder="Search by skills…"
-          autoCapitalize="none"
-          autoCorrect="off"
-          spellCheck={false}
-          isSearch={true}
-        />
+      <div className={sit.UiSkillsModeToggleWrap}>
+        <div className={sit.UiSkillsModeToggle} role="tablist" aria-label="Skills source">
+          <button
+            type="button"
+            role="tab"
+            aria-selected={activeSubTab === "clawhub"}
+            className={`${sit.UiSkillsModeOption}${activeSubTab === "clawhub" ? ` ${sit["UiSkillsModeOption--active"]}` : ""}`}
+            onClick={() => setActiveSubTab("clawhub")}
+          >
+            ClawHub
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={activeSubTab === "installed"}
+            className={`${sit.UiSkillsModeOption}${activeSubTab === "installed" ? ` ${sit["UiSkillsModeOption--active"]}` : ""}`}
+            onClick={() => setActiveSubTab("installed")}
+          >
+            Installed
+          </button>
+        </div>
       </div>
 
-      <SkillsGrid
-        searchQuery={searchQuery}
-        customSkills={custom.customSkills}
-        statuses={statuses}
-        onOpenModal={modal.openModal}
-        onRemoveCustomSkill={custom.requestRemoveCustomSkill}
-      />
+      {activeSubTab === "installed" ? (
+        <>
+          <div className="UiInputRow">
+            <TextInput
+              type="text"
+              value={searchQuery}
+              onChange={setSearchQuery}
+              placeholder="Search by skills…"
+              autoCapitalize="none"
+              autoCorrect="off"
+              spellCheck={false}
+              isSearch={true}
+            />
+          </div>
 
-      {/* ── Skill configuration modals ────────────────────────── */}
-      <SkillModals
-        activeModal={modal.activeModal}
-        onClose={modal.closeModal}
-        gw={props.gw}
-        loadConfig={loadConfig}
-        statuses={statuses}
-        onConnected={modal.handleConnected}
-        onDisabled={modal.handleDisabled}
-      />
+          <SkillsGrid
+            searchQuery={searchQuery}
+            customSkills={custom.customSkills}
+            statuses={statuses}
+            onOpenModal={modal.openModal}
+            onRemoveCustomSkill={custom.requestRemoveCustomSkill}
+          />
 
-      {/* ── Custom skill upload modal ────────────────────────── */}
-      <CustomSkillUploadModal
-        open={custom.showUploadModal}
-        onClose={() => custom.setShowUploadModal(false)}
-        onInstalled={custom.handleCustomSkillInstalled}
-      />
+          <SkillModals
+            activeModal={modal.activeModal}
+            onClose={modal.closeModal}
+            gw={props.gw}
+            loadConfig={loadConfig}
+            statuses={statuses}
+            onConnected={modal.handleConnected}
+            onDisabled={modal.handleDisabled}
+          />
 
-      {/* ── Confirm remove custom skill ────────────────────── */}
-      <ConfirmDialog
-        open={custom.pendingRemove !== null}
-        title={`Remove skill "${custom.pendingRemove?.name ?? ""}"?`}
-        subtitle="This will delete the skill files."
-        confirmLabel="Remove"
-        danger
-        onConfirm={() => void custom.confirmRemoveCustomSkill()}
-        onCancel={custom.cancelRemoveCustomSkill}
-      />
+          <CustomSkillUploadModal
+            open={custom.showUploadModal}
+            onClose={() => custom.setShowUploadModal(false)}
+            onInstalled={custom.handleCustomSkillInstalled}
+          />
+
+          <ConfirmDialog
+            open={custom.pendingRemove !== null}
+            title={`Remove skill "${custom.pendingRemove?.name ?? ""}"?`}
+            subtitle="This will delete the skill files."
+            confirmLabel="Remove"
+            danger
+            onConfirm={() => void custom.confirmRemoveCustomSkill()}
+            onCancel={custom.cancelRemoveCustomSkill}
+          />
+        </>
+      ) : (
+        <ClawHubTab
+          gw={props.gw}
+          installedSkillDirs={custom.customSkills.map((skill) => skill.dirName)}
+          onInstalledSkillsChanged={() => void custom.refreshCustomSkills()}
+        />
+      )}
     </div>
   );
 }

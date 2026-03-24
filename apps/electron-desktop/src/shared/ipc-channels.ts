@@ -74,6 +74,11 @@ export const IPC = {
   listCustomSkills: "list-custom-skills",
   removeCustomSkill: "remove-custom-skill",
 
+  // ClawHub (skill registry)
+  clawhubListSkills: "clawhub-list-skills",
+  clawhubSearchSkills: "clawhub-search-skills",
+  clawhubGetSkillPackage: "clawhub-get-skill-package",
+
   // Gog (Google Workspace)
   gogAuthList: "gog-auth-list",
   gogAuthAdd: "gog-auth-add",

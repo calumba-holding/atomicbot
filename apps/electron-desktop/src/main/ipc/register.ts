@@ -24,6 +24,7 @@ import { registerOAuthHandlers } from "./oauth-ipc";
 import { registerUpdaterIpcHandlers } from "./updater-ipc";
 import { registerSkillHandlers } from "./skills-ipc";
 import { registerBackupHandlers } from "./backup-ipc";
+import { registerClawHubHandlers } from "./clawhub-ipc";
 import { registerDefenderHandlers } from "./defender-ipc";
 import { IPC } from "../../shared/ipc-channels";
 
@@ -42,6 +43,7 @@ export function registerIpcHandlers(params: RegisterParams) {
   registerUpdaterIpcHandlers();
   registerSkillHandlers(params);
   registerBackupHandlers(params);
+  registerClawHubHandlers();
   registerDefenderHandlers(params);
 
   registerGogIpcHandlers(params);
