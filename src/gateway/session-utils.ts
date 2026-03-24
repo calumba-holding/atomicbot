@@ -16,6 +16,7 @@ import {
   listSubagentRunsForController,
   resolveSubagentSessionStatus,
 } from "../agents/subagent-registry.js";
+import { stripInboundMetadata } from "../auto-reply/reply/strip-inbound-meta.js";
 import { type OpenClawConfig, loadConfig } from "../config/config.js";
 import { resolveStateDir } from "../config/paths.js";
 import {
@@ -179,8 +180,10 @@ export function deriveSessionTitle(
   }
 
   if (firstUserMessage?.trim()) {
-    const normalized = firstUserMessage.replace(/\s+/g, " ").trim();
-    return truncateTitle(normalized, DERIVED_TITLE_MAX_LEN);
+    const normalized = stripInboundMetadata(firstUserMessage).replace(/\s+/g, " ").trim();
+    if (normalized) {
+      return truncateTitle(normalized, DERIVED_TITLE_MAX_LEN);
+    }
   }
 
   if (entry.sessionId) {

@@ -608,6 +608,16 @@ describe("deriveSessionTitle", () => {
     expect(deriveSessionTitle(entry, "Hello, how are you?")).toBe("Hello, how are you?");
   });
 
+  test("strips inbound metadata from first user message before deriving title", () => {
+    const entry = {
+      sessionId: "abc123",
+      updatedAt: Date.now(),
+    } as SessionEntry;
+    const firstUserMessage =
+      'Sender (untrusted metadata):\n```json\n{"label":"Alice"}\n```\n\nActual user message';
+    expect(deriveSessionTitle(entry, firstUserMessage)).toBe("Actual user message");
+  });
+
   test("truncates long first user message to 60 chars with ellipsis", () => {
     const entry = {
       sessionId: "abc123",
