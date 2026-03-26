@@ -78,6 +78,8 @@ export const IPC = {
   clawhubListSkills: "clawhub-list-skills",
   clawhubSearchSkills: "clawhub-search-skills",
   clawhubGetSkillPackage: "clawhub-get-skill-package",
+  clawhubGetSkillFile: "clawhub-get-skill-file",
+  clawhubGetComments: "clawhub-get-comments",
 
   // Gog (Google Workspace)
   gogAuthList: "gog-auth-list",

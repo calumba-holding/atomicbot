@@ -1,2 +1,2 @@
 export { ClawHubTab } from "./ClawHubTab";
-export { ClawHubPackageModal } from "./ClawHubPackageModal";
+export { ClawHubDetailPage } from "./ClawHubDetailPage";

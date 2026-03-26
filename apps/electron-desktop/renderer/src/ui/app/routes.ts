@@ -8,6 +8,7 @@ export const routes = {
   settings: "/settings",
   terminal: "/terminal",
   skills: "/skills",
+  clawhubDetail: "/skills/clawhub",
   models: "/models",
 } as const;
 

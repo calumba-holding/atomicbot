@@ -1,39 +1,103 @@
 import React from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { getDesktopApiOrNull } from "@ipc/desktopApi";
 import { CheckboxRow, SelectDropdown, TextInput } from "@shared/kit";
 import { addToast, addToastError } from "@shared/toast";
+import { routes } from "@ui/app/routes";
 import { useClawHubSkills } from "./useClawHubSkills";
+import type { ClawHubSortField } from "./useClawHubSkills";
 import { ClawHubGrid } from "./ClawHubGrid";
-import { ClawHubPackageModal } from "./ClawHubPackageModal";
 import type { GatewayRpc } from "../skillDefinitions";
+import { BUILTIN_SKILL_IDS } from "../skillDefinitions";
 
-type SortMode = "updated-desc" | "created-desc" | "name-asc";
+const VALID_SORT_FIELDS = new Set<ClawHubSortField>([
+  "downloads",
+  "stars",
+  "installs",
+  "updated",
+  "newest",
+  "name",
+]);
+
 type SkillActionKind = "install" | "remove" | null;
+
+const SORT_OPTIONS: Array<{ value: ClawHubSortField; label: string }> = [
+  { value: "downloads", label: "Downloads" },
+  { value: "stars", label: "Stars" },
+  { value: "installs", label: "Installs" },
+  { value: "updated", label: "Recently updated" },
+  { value: "newest", label: "Newest" },
+  { value: "name", label: "Name" },
+];
 
 export function ClawHubTab(props: {
   gw: GatewayRpc;
   installedSkillDirs: string[];
   onInstalledSkillsChanged: () => Promise<void> | void;
 }) {
+  const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  const initialSort = searchParams.get("sort") as ClawHubSortField | null;
+  const initialQuery = searchParams.get("q") ?? "";
+  const initialSafe = searchParams.get("safe") !== "0";
+
   const {
     skills,
     loading,
+    loadingMore,
     error,
     searchQuery,
-    setSearchQuery,
+    setSearchQuery: setSearchQueryRaw,
     hideSuspicious,
-    setHideSuspicious,
-    loadSkillDetail,
-  } = useClawHubSkills();
+    setHideSuspicious: setHideSuspiciousRaw,
+    sortField,
+    setSortField: setSortFieldRaw,
+    hasMore,
+    loadMore,
+  } = useClawHubSkills({
+    query: initialQuery,
+    sort: initialSort && VALID_SORT_FIELDS.has(initialSort) ? initialSort : undefined,
+    hideSuspicious: initialSafe,
+  });
+
+  const syncParams = React.useCallback(
+    (q: string, sort: ClawHubSortField, safe: boolean) => {
+      const next = new URLSearchParams();
+      if (q) next.set("q", q);
+      if (sort !== "downloads") next.set("sort", sort);
+      if (!safe) next.set("safe", "0");
+      setSearchParams(next, { replace: true });
+    },
+    [setSearchParams]
+  );
+
+  const setSearchQuery = React.useCallback(
+    (q: string) => {
+      setSearchQueryRaw(q);
+      syncParams(q, sortField, hideSuspicious);
+    },
+    [setSearchQueryRaw, syncParams, sortField, hideSuspicious]
+  );
+
+  const setSortField = React.useCallback(
+    (sort: ClawHubSortField) => {
+      setSortFieldRaw(sort);
+      syncParams(searchQuery, sort, hideSuspicious);
+    },
+    [setSortFieldRaw, syncParams, searchQuery, hideSuspicious]
+  );
+
+  const setHideSuspicious = React.useCallback(
+    (safe: boolean) => {
+      setHideSuspiciousRaw(safe);
+      syncParams(searchQuery, sortField, safe);
+    },
+    [setHideSuspiciousRaw, syncParams, searchQuery, sortField]
+  );
+
   const [actionSlug, setActionSlug] = React.useState<string | null>(null);
   const [actionKind, setActionKind] = React.useState<SkillActionKind>(null);
-  const [sortMode, setSortMode] = React.useState<SortMode>("name-asc");
-  const [activeSlug, setActiveSlug] = React.useState<string | null>(null);
-  const [detailLoading, setDetailLoading] = React.useState(false);
-  const [detailError, setDetailError] = React.useState<string | null>(null);
-  const [detail, setDetail] = React.useState<Awaited<ReturnType<typeof loadSkillDetail>> | null>(
-    null
-  );
 
   const handleInstall = React.useCallback(
     async (slug: string) => {
@@ -87,38 +151,16 @@ export function ClawHubTab(props: {
     [props.installedSkillDirs]
   );
 
-  const filteredSkills = React.useMemo(() => {
-    const next = [...skills];
-
-    next.sort((left, right) => {
-      if (sortMode === "name-asc") {
-        return left.displayName.localeCompare(right.displayName);
-      }
-      if (sortMode === "created-desc") {
-        return right.createdAt - left.createdAt;
-      }
-      return right.updatedAt - left.updatedAt;
-    });
-
-    return next;
-  }, [skills, sortMode]);
-
   const handleOpenDetails = React.useCallback(
-    async (slug: string) => {
-      setActiveSlug(slug);
-      setDetailLoading(true);
-      setDetailError(null);
-      try {
-        const nextDetail = await loadSkillDetail(slug);
-        setDetail(nextDetail);
-      } catch (err) {
-        setDetail(null);
-        setDetailError(err instanceof Error ? err.message : String(err));
-      } finally {
-        setDetailLoading(false);
-      }
+    (slug: string) => {
+      navigate(`${routes.clawhubDetail}/${slug}`);
     },
-    [loadSkillDetail]
+    [navigate]
+  );
+
+  const filteredSkills = React.useMemo(
+    () => skills.filter((sk) => !BUILTIN_SKILL_IDS.has(sk.slug)),
+    [skills]
   );
 
   return (
@@ -133,15 +175,7 @@ export function ClawHubTab(props: {
         }}
       >
         <div className="UiInputRow" style={{ marginBottom: 0 }}>
-          <div
-            style={{
-              fontSize: 12,
-              color: "var(--muted2)",
-              marginBottom: 6,
-            }}
-          >
-            Filter
-          </div>
+          <div style={{ fontSize: 12, color: "var(--muted2)", marginBottom: 6 }}>Filter</div>
           <TextInput
             type="text"
             value={searchQuery}
@@ -154,23 +188,11 @@ export function ClawHubTab(props: {
           />
         </div>
         <div>
-          <div
-            style={{
-              fontSize: 12,
-              color: "var(--muted2)",
-              marginBottom: 6,
-            }}
-          >
-            Sort
-          </div>
-          <SelectDropdown<SortMode>
-            value={sortMode}
-            onChange={setSortMode}
-            options={[
-              { value: "updated-desc", label: "Recently updated" },
-              { value: "created-desc", label: "Newest" },
-              { value: "name-asc", label: "Name" },
-            ]}
+          <div style={{ fontSize: 12, color: "var(--muted2)", marginBottom: 6 }}>Sort</div>
+          <SelectDropdown<ClawHubSortField>
+            value={sortField}
+            onChange={setSortField}
+            options={SORT_OPTIONS}
           />
         </div>
       </div>
@@ -184,34 +206,18 @@ export function ClawHubTab(props: {
       <ClawHubGrid
         skills={filteredSkills}
         loading={loading}
+        loadingMore={loadingMore}
         error={error}
         actionSlug={actionSlug}
         actionKind={actionKind}
         installedSlugs={installedSlugs}
+        hasMore={hasMore}
         onInstall={(slug) => void handleInstall(slug)}
         onRemove={(slug) => void handleRemove(slug)}
-        onOpenDetails={(slug) => void handleOpenDetails(slug)}
+        onOpenDetails={handleOpenDetails}
+        onLoadMore={loadMore}
         emptyStateText="No ClawHub packages match the current filters"
         emptyStateSubtext="Try clearing filters or changing the search query."
-      />
-
-      <ClawHubPackageModal
-        open={activeSlug !== null}
-        slug={activeSlug}
-        detail={detail}
-        loading={detailLoading}
-        error={detailError}
-        actionBusy={actionSlug === activeSlug}
-        actionKind={actionKind}
-        installed={activeSlug !== null && installedSlugs.has(activeSlug)}
-        onClose={() => {
-          setActiveSlug(null);
-          setDetail(null);
-          setDetailError(null);
-          setDetailLoading(false);
-        }}
-        onInstall={(slug) => void handleInstall(slug)}
-        onRemove={(slug) => void handleRemove(slug)}
       />
     </>
   );

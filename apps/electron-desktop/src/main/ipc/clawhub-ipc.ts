@@ -2,106 +2,16 @@ import { ipcMain } from "electron";
 
 import { IPC } from "../../shared/ipc-channels";
 
-const CLAWHUB_BASE_URL = "https://clawhub.ai";
+const CLAWHUB_API_URL = process.env.CLAWHUB_API_URL || "https://clawhub.atomicbot.ai";
 const FETCH_TIMEOUT_MS = 30_000;
-
-type ClawHubPackageListItem = {
-  name: string;
-  displayName: string;
-  family: string;
-  channel: string;
-  isOfficial: boolean;
-  summary?: string;
-  ownerHandle?: string | null;
-  latestVersion?: string | null;
-  createdAt: number;
-  updatedAt: number;
-  capabilityTags?: string[];
-  executesCode?: boolean;
-  verificationTier?: string | null;
-  runtimeId?: string | null;
-};
-
-type ClawHubPackageSearchResult = {
-  score: number;
-  package: ClawHubPackageListItem;
-};
-
-type ClawHubSkillSearchResult = {
-  score: number;
-  slug: string;
-  displayName: string;
-  summary?: string;
-  version?: string;
-  updatedAt?: number;
-};
-
-type ClawHubPackageDetail = {
-  package:
-    | (ClawHubPackageListItem & {
-        tags?: Record<string, string>;
-        compatibility?: {
-          pluginApiRange?: string;
-          builtWithOpenClawVersion?: string;
-          minGatewayVersion?: string;
-        } | null;
-        capabilities?: {
-          executesCode?: boolean;
-          runtimeId?: string;
-          capabilityTags?: string[];
-          bundleFormat?: string;
-          hostTargets?: string[];
-          pluginKind?: string;
-          channels?: string[];
-          providers?: string[];
-          hooks?: string[];
-          bundledSkills?: string[];
-        } | null;
-        verification?: {
-          tier?: string;
-          scope?: string;
-          summary?: string;
-          sourceRepo?: string;
-          sourceCommit?: string;
-          hasProvenance?: boolean;
-          scanStatus?: string;
-        } | null;
-      })
-    | null;
-  owner?: {
-    handle?: string | null;
-    displayName?: string | null;
-    image?: string | null;
-  } | null;
-};
-
-function mapPackageListItem(item: ClawHubPackageListItem) {
-  return {
-    slug: item.name,
-    displayName: item.displayName,
-    summary: item.summary,
-    latestVersion: item.latestVersion
-      ? { version: item.latestVersion, createdAt: item.updatedAt }
-      : null,
-    createdAt: item.createdAt,
-    updatedAt: item.updatedAt,
-    ownerHandle: item.ownerHandle,
-    channel: item.channel,
-    isOfficial: item.isOfficial,
-    verificationTier: item.verificationTier,
-    executesCode: item.executesCode,
-    capabilityTags: item.capabilityTags ?? [],
-    runtimeId: item.runtimeId,
-  };
-}
 
 async function clawhubFetch<T>(
   path: string,
   search?: Record<string, string | undefined>
 ): Promise<T> {
-  const url = new URL(path, CLAWHUB_BASE_URL);
+  const url = new URL(path, CLAWHUB_API_URL);
   for (const [key, value] of Object.entries(search ?? {})) {
-    if (value) {
+    if (value !== undefined && value !== "") {
       url.searchParams.set(key, value);
     }
   }
@@ -124,74 +34,101 @@ async function clawhubFetch<T>(
   }
 }
 
+async function clawhubFetchText(
+  path: string,
+  search?: Record<string, string | undefined>
+): Promise<string> {
+  const url = new URL(path, CLAWHUB_API_URL);
+  for (const [key, value] of Object.entries(search ?? {})) {
+    if (value !== undefined && value !== "") {
+      url.searchParams.set(key, value);
+    }
+  }
+
+  const controller = new AbortController();
+  const timeout = setTimeout(
+    () => controller.abort(new Error(`ClawHub request timed out after ${FETCH_TIMEOUT_MS}ms`)),
+    FETCH_TIMEOUT_MS
+  );
+
+  try {
+    const response = await fetch(url, { signal: controller.signal });
+    if (!response.ok) {
+      const body = await response.text().catch(() => response.statusText);
+      throw new Error(`ClawHub ${path} failed (${response.status}): ${body}`);
+    }
+    return await response.text();
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
 export function registerClawHubHandlers() {
   ipcMain.handle(
     IPC.clawhubListSkills,
-    async (_evt, params?: { limit?: number; nonSuspicious?: boolean }) => {
+    async (
+      _evt,
+      params?: {
+        limit?: number;
+        page?: number;
+        sort?: string;
+        dir?: string;
+        nonSuspicious?: boolean;
+      }
+    ) => {
       try {
         const result = await clawhubFetch<{
-          items: ClawHubPackageListItem[];
-          nextCursor?: string | null;
-        }>("/api/v1/packages", {
-          family: "skill",
-          limit: params?.limit ? String(params.limit) : "50",
-          nonSuspicious: params?.nonSuspicious ? "true" : undefined,
+          items: unknown[];
+          total: number;
+          page: number;
+          limit: number;
+          totalPages: number;
+        }>("/api/skills", {
+          page: params?.page ? String(params.page) : undefined,
+          limit: params?.limit ? String(params.limit) : "25",
+          sort: params?.sort,
+          dir: params?.dir,
+          nonSuspiciousOnly: params?.nonSuspicious ? "true" : undefined,
         });
         return {
           ok: true,
-          items: result.items.map(mapPackageListItem),
+          items: result.items,
+          total: result.total,
+          page: result.page,
+          totalPages: result.totalPages,
         };
       } catch (err) {
-        return { ok: false, items: [], error: String(err instanceof Error ? err.message : err) };
+        return {
+          ok: false,
+          items: [],
+          total: 0,
+          page: 1,
+          totalPages: 0,
+          error: String(err instanceof Error ? err.message : err),
+        };
       }
     }
   );
 
   ipcMain.handle(
     IPC.clawhubSearchSkills,
-    async (_evt, params: { query?: string; limit?: number; nonSuspicious?: boolean }) => {
+    async (_evt, params: { query?: string; limit?: number }) => {
       const query = typeof params?.query === "string" ? params.query.trim() : "";
       if (!query) {
         return { ok: false, results: [], error: "Search query is required" };
       }
       try {
-        const result = await clawhubFetch<{
-          results: ClawHubPackageSearchResult[] | ClawHubSkillSearchResult[];
-        }>("/api/v1/packages/search", {
+        const results = await clawhubFetch<unknown[]>("/api/skills/search", {
           q: query,
-          family: "skill",
           limit: params?.limit ? String(params.limit) : "30",
-          nonSuspicious: params?.nonSuspicious ? "true" : undefined,
         });
-        return {
-          ok: true,
-          results: (result.results ?? []).map((item) => {
-            if ("package" in item) {
-              const pkg = (item as ClawHubPackageSearchResult).package;
-              return mapPackageListItem(pkg);
-            }
-            const skill = item as ClawHubSkillSearchResult;
-            return {
-              slug: skill.slug,
-              displayName: skill.displayName,
-              summary: skill.summary,
-              latestVersion: skill.version
-                ? { version: skill.version, createdAt: skill.updatedAt ?? 0 }
-                : null,
-              createdAt: skill.updatedAt ?? 0,
-              updatedAt: skill.updatedAt ?? 0,
-              ownerHandle: null,
-              channel: "community",
-              isOfficial: false,
-              verificationTier: null,
-              executesCode: false,
-              capabilityTags: [],
-              runtimeId: null,
-            };
-          }),
-        };
+        return { ok: true, results };
       } catch (err) {
-        return { ok: false, results: [], error: String(err instanceof Error ? err.message : err) };
+        return {
+          ok: false,
+          results: [],
+          error: String(err instanceof Error ? err.message : err),
+        };
       }
     }
   );
@@ -202,27 +139,54 @@ export function registerClawHubHandlers() {
       return { ok: false, error: "Package slug is required" };
     }
     try {
-      const result = await clawhubFetch<ClawHubPackageDetail>(
-        `/api/v1/packages/${encodeURIComponent(slug)}`
+      const result = await clawhubFetch<Record<string, unknown>>(
+        `/api/skills/${encodeURIComponent(slug)}`
       );
-      if (!result.package) {
-        return { ok: false, error: `Package "${slug}" not found` };
-      }
-      const pkg = result.package;
-      return {
-        ok: true,
-        package: {
-          ...mapPackageListItem(pkg),
-          latestVersion: pkg.latestVersion ?? null,
-          owner: result.owner ?? null,
-          tags: pkg.tags ?? {},
-          compatibility: pkg.compatibility ?? null,
-          capabilities: pkg.capabilities ?? null,
-          verification: pkg.verification ?? null,
-        },
-      };
+      return { ok: true, package: result };
     } catch (err) {
       return { ok: false, error: String(err instanceof Error ? err.message : err) };
     }
   });
+
+  ipcMain.handle(
+    IPC.clawhubGetSkillFile,
+    async (_evt, params: { slug?: string; path?: string }) => {
+      const slug = typeof params?.slug === "string" ? params.slug.trim() : "";
+      const filePath = typeof params?.path === "string" ? params.path.trim() : "";
+      if (!slug || !filePath) {
+        return { ok: false, error: "Slug and file path are required" };
+      }
+      try {
+        const content = await clawhubFetchText(`/api/skills/${encodeURIComponent(slug)}/files`, {
+          path: filePath,
+        });
+        return { ok: true, content };
+      } catch (err) {
+        return { ok: false, error: String(err instanceof Error ? err.message : err) };
+      }
+    }
+  );
+
+  ipcMain.handle(
+    IPC.clawhubGetComments,
+    async (_evt, params: { slug?: string; limit?: number }) => {
+      const slug = typeof params?.slug === "string" ? params.slug.trim() : "";
+      if (!slug) {
+        return { ok: false, comments: [], error: "Slug is required" };
+      }
+      try {
+        const comments = await clawhubFetch<unknown[]>(
+          `/api/skills/${encodeURIComponent(slug)}/comments`,
+          { limit: params?.limit ? String(params.limit) : "50" }
+        );
+        return { ok: true, comments };
+      } catch (err) {
+        return {
+          ok: false,
+          comments: [],
+          error: String(err instanceof Error ? err.message : err),
+        };
+      }
+    }
+  );
 }

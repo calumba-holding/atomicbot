@@ -37,6 +37,7 @@ import { UpdateBanner } from "../updates/UpdateBanner";
 import { DefenderBanner } from "../updates/DefenderBanner";
 import { AppBanners } from "../shared/banners/AppBanners";
 import { SkillsPage } from "@ui/skills/SkillsPage";
+import { ClawHubDetailPage } from "@ui/settings/skills/clawhub";
 import { ModelsPage } from "@ui/models/ModelsPage";
 import { useAppOpenedEvent } from "@analytics/use-app-opened-event";
 import a from "./App.module.css";
@@ -231,6 +232,7 @@ export function App() {
             </Route>
 
             <Route path="skills" element={<SkillsPage state={state} />} />
+            <Route path="skills/clawhub/:slug" element={<ClawHubDetailPage state={state} />} />
             <Route path="models" element={<ModelsPage />} />
           </Route>
           <Route

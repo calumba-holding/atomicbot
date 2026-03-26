@@ -1,15 +1,18 @@
 // @vitest-environment jsdom
 import React from "react";
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { afterEach, describe, it, expect, vi, beforeEach } from "vitest";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 
 const mockGetDesktopApiOrNull = vi.fn();
 const mockAddToast = vi.fn();
 const mockAddToastError = vi.fn();
-const mockLoadSkillDetail = vi.fn();
 const mockSetSearchQuery = vi.fn();
 const mockSetHideSuspicious = vi.fn();
+const mockSetSortField = vi.fn();
+const mockSetSortDir = vi.fn();
+const mockLoadMore = vi.fn();
 const mockUseClawHubSkills = vi.fn();
+const mockNavigate = vi.fn();
 
 vi.mock("@ipc/desktopApi", () => ({
   getDesktopApiOrNull: () => mockGetDesktopApiOrNull(),
@@ -18,6 +21,17 @@ vi.mock("@ipc/desktopApi", () => ({
 vi.mock("@shared/toast", () => ({
   addToast: (message: string) => mockAddToast(message),
   addToastError: (message: string) => mockAddToastError(message),
+}));
+
+const mockSearchParams = new URLSearchParams();
+const mockSetSearchParams = vi.fn();
+vi.mock("react-router-dom", () => ({
+  useNavigate: () => mockNavigate,
+  useSearchParams: () => [mockSearchParams, mockSetSearchParams],
+}));
+
+vi.mock("@ui/app/routes", () => ({
+  routes: { skills: "/skills", clawhubDetail: "/skills/clawhub" },
 }));
 
 vi.mock("@shared/kit", () => ({
@@ -71,31 +85,14 @@ vi.mock("@shared/kit", () => ({
       ))}
     </select>
   ),
-  Modal: ({ open, children }: { open: boolean; children: React.ReactNode }) =>
-    open ? <div>{children}</div> : null,
-  ActionButton: ({
-    children,
-    onClick,
-    className,
-    disabled,
-  }: {
-    children: React.ReactNode;
-    onClick: () => void;
-    className?: string;
-    disabled?: boolean;
-  }) => (
-    <button type="button" className={className} disabled={disabled} onClick={onClick}>
-      {children}
-    </button>
-  ),
 }));
 
 vi.mock("./ClawHubGrid.module.css", () => ({
   default: new Proxy({}, { get: (_target, prop) => String(prop) }),
 }));
 
-vi.mock("./ClawHubPackageModal.module.css", () => ({
-  default: new Proxy({}, { get: (_target, prop) => String(prop) }),
+vi.mock("../skillDefinitions", () => ({
+  BUILTIN_SKILL_IDS: new Set(["google-workspace", "apple-notes"]),
 }));
 
 vi.mock("./useClawHubSkills", () => ({
@@ -108,31 +105,40 @@ const skill = {
   slug: "calendar",
   displayName: "Calendar Skill",
   summary: "Manage calendar events",
+  badges: { highlighted: false, official: false, deprecated: false },
+  stats: {
+    downloads: 500,
+    installsCurrent: 10,
+    installsAllTime: 20,
+    stars: 15,
+    versions: 2,
+    comments: 0,
+  },
+  owner: { handle: "magos", displayName: "Magos", kind: "user" },
   latestVersion: { version: "1.2.3", createdAt: Date.now() },
   createdAt: Date.now(),
   updatedAt: Date.now(),
-  ownerHandle: "magos",
-  channel: "community",
-  isOfficial: false,
-  verificationTier: null,
-  executesCode: false,
-  capabilityTags: [],
-  runtimeId: null,
 };
 
 describe("ClawHubTab", () => {
+  afterEach(() => cleanup());
   beforeEach(() => {
     vi.clearAllMocks();
-    mockLoadSkillDetail.mockResolvedValue(null);
     mockUseClawHubSkills.mockReturnValue({
       skills: [skill],
       loading: false,
+      loadingMore: false,
       error: null,
       searchQuery: "",
       setSearchQuery: mockSetSearchQuery,
       hideSuspicious: true,
       setHideSuspicious: mockSetHideSuspicious,
-      loadSkillDetail: mockLoadSkillDetail,
+      sortField: "downloads",
+      setSortField: mockSetSortField,
+      sortDir: "desc",
+      setSortDir: mockSetSortDir,
+      hasMore: false,
+      loadMore: mockLoadMore,
     });
   });
 
@@ -185,5 +191,19 @@ describe("ClawHubTab", () => {
     await waitFor(() => expect(removeCustomSkill).toHaveBeenCalledWith("calendar"));
     expect(onInstalledSkillsChanged).toHaveBeenCalledOnce();
     expect(mockAddToast).toHaveBeenCalledWith('Removed "calendar"');
+  });
+
+  it("navigates to detail page when skill card is clicked", () => {
+    render(
+      <ClawHubTab
+        gw={{ request: vi.fn() }}
+        installedSkillDirs={[]}
+        onInstalledSkillsChanged={vi.fn()}
+      />
+    );
+
+    fireEvent.click(screen.getByText("Calendar Skill"));
+
+    expect(mockNavigate).toHaveBeenCalledWith("/skills/clawhub/calendar");
   });
 });

@@ -105,12 +105,21 @@ const api: OpenclawDesktopApi = {
   listCustomSkills: async () => ipcRenderer.invoke(IPC.listCustomSkills),
   removeCustomSkill: async (dirName: string) =>
     ipcRenderer.invoke(IPC.removeCustomSkill, { dirName }),
-  clawhubListSkills: async (params?: { limit?: number; nonSuspicious?: boolean }) =>
-    ipcRenderer.invoke(IPC.clawhubListSkills, params),
-  clawhubSearchSkills: async (params: { query: string; limit?: number; nonSuspicious?: boolean }) =>
+  clawhubListSkills: async (params?: {
+    limit?: number;
+    page?: number;
+    sort?: string;
+    dir?: string;
+    nonSuspicious?: boolean;
+  }) => ipcRenderer.invoke(IPC.clawhubListSkills, params),
+  clawhubSearchSkills: async (params: { query: string; limit?: number }) =>
     ipcRenderer.invoke(IPC.clawhubSearchSkills, params),
   clawhubGetSkillPackage: async (params: { slug: string }) =>
     ipcRenderer.invoke(IPC.clawhubGetSkillPackage, params),
+  clawhubGetSkillFile: async (params: { slug: string; path: string }) =>
+    ipcRenderer.invoke(IPC.clawhubGetSkillFile, params),
+  clawhubGetComments: async (params: { slug: string; limit?: number }) =>
+    ipcRenderer.invoke(IPC.clawhubGetComments, params),
   whisperModelStatus: async (params?: { model?: string }) =>
     ipcRenderer.invoke(IPC.whisperModelStatus, params),
   whisperModelDownload: async (params?: { model?: string }) =>

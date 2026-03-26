@@ -47,6 +47,21 @@ export type SkillDefinition = {
   image?: string;
 };
 
+export const BUILTIN_SKILL_IDS = new Set([
+  "google-workspace",
+  "apple-notes",
+  "apple-reminders",
+  "notion",
+  "github",
+  "trello",
+  "slack",
+  "obsidian",
+  "media-understanding",
+  "web-search",
+  "sag",
+  "nano-banana",
+]);
+
 export const SKILLS: SkillDefinition[] = [
   {
     id: "google-workspace",

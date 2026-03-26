@@ -1,172 +1,242 @@
 import React from "react";
 import { getDesktopApi } from "@ipc/desktopApi";
 
+export type ClawHubBadges = {
+  highlighted: boolean;
+  official: boolean;
+  deprecated: boolean;
+};
+
+export type ClawHubStats = {
+  downloads: number;
+  installsCurrent: number;
+  installsAllTime: number;
+  stars: number;
+  versions: number;
+  comments: number;
+};
+
+export type ClawHubOwner = {
+  handle: string;
+  displayName: string;
+  image?: string;
+  kind: string;
+};
+
+export type ClawHubVersion = {
+  version: string;
+  createdAt: number;
+  changelog?: string;
+  changelogSource?: string | null;
+};
+
 export type ClawHubSkillItem = {
   slug: string;
   displayName: string;
   summary?: string;
-  latestVersion?: { version: string; createdAt: number } | null;
+  emoji?: string | null;
+  badges: ClawHubBadges;
+  stats: ClawHubStats;
+  owner?: ClawHubOwner | null;
+  latestVersion?: ClawHubVersion | null;
   createdAt: number;
   updatedAt: number;
-  ownerHandle?: string | null;
-  channel: string;
-  isOfficial: boolean;
-  verificationTier?: string | null;
-  executesCode?: boolean;
-  capabilityTags?: string[];
-  runtimeId?: string | null;
+};
+
+export type ClawHubFileEntry = {
+  path: string;
+  size: number;
+  sha256?: string;
+  contentType?: string;
+};
+
+export type ClawHubCommentUser = {
+  handle: string;
+  displayName: string;
+  image?: string;
+};
+
+export type ClawHubComment = {
+  id: string;
+  user: ClawHubCommentUser;
+  body: string;
+  createdAt: number;
+};
+
+export type ClawHubModeration = {
+  isPendingScan: boolean;
+  isMalwareBlocked: boolean;
+  isSuspicious: boolean;
+  isHiddenByMod: boolean;
+  isRemoved: boolean;
+  verdict?: string | null;
+  reasonCodes: string[];
+  summary?: string | null;
+};
+
+export type ClawHubVtAnalysis = {
+  status: string;
+  verdict: string;
+  analysis?: string | null;
+  source?: string | null;
+  checkedAt: number;
+};
+
+export type ClawHubLlmDimension = {
+  name: string;
+  label: string;
+  rating: string;
+  detail: string;
+};
+
+export type ClawHubLlmAnalysis = {
+  status: string;
+  verdict: string;
+  confidence: string;
+  summary?: string | null;
+  guidance?: string | null;
+  model?: string | null;
+  checkedAt: number;
+  dimensions?: ClawHubLlmDimension[] | null;
 };
 
 export type ClawHubSkillPackageDetail = {
   slug: string;
   displayName: string;
   summary?: string;
-  latestVersion?: string | null;
+  emoji?: string | null;
+  badges: ClawHubBadges;
+  stats: ClawHubStats;
+  owner?: ClawHubOwner | null;
+  latestVersion?: ClawHubVersion | null;
   createdAt: number;
   updatedAt: number;
-  ownerHandle?: string | null;
-  owner?: {
-    handle?: string | null;
-    displayName?: string | null;
-    image?: string | null;
-  } | null;
-  channel: string;
-  isOfficial: boolean;
-  verificationTier?: string | null;
-  executesCode?: boolean;
-  capabilityTags?: string[];
-  runtimeId?: string | null;
-  tags?: Record<string, string>;
-  compatibility?: {
-    pluginApiRange?: string;
-    builtWithOpenClawVersion?: string;
-    minGatewayVersion?: string;
-  } | null;
-  capabilities?: {
-    executesCode?: boolean;
-    runtimeId?: string;
-    capabilityTags?: string[];
-    bundleFormat?: string;
-    hostTargets?: string[];
-    pluginKind?: string;
-    channels?: string[];
-    providers?: string[];
-    hooks?: string[];
-    bundledSkills?: string[];
-  } | null;
-  verification?: {
-    tier?: string;
-    scope?: string;
-    summary?: string;
-    sourceRepo?: string;
-    sourceCommit?: string;
-    hasProvenance?: boolean;
-    scanStatus?: string;
-  } | null;
+  sourceId?: string;
+  license?: string | null;
+  platforms?: string[] | null;
+  files?: ClawHubFileEntry[] | null;
+  moderation?: ClawHubModeration | null;
+  vtAnalysis?: ClawHubVtAnalysis | null;
+  llmAnalysis?: ClawHubLlmAnalysis | null;
+  tags?: Record<string, string> | null;
+  forkOf?: { skillId: string; kind: string; version?: string | null } | null;
+  canonicalSkillId?: string | null;
+  syncedAt?: string;
+  detailSyncedAt?: string | null;
 };
+
+export type ClawHubSortField = "downloads" | "stars" | "installs" | "updated" | "newest" | "name";
+export type ClawHubSortDir = "asc" | "desc";
 
 export type UseClawHubSkillsResult = {
   skills: ClawHubSkillItem[];
   loading: boolean;
+  loadingMore: boolean;
   error: string | null;
   searchQuery: string;
   setSearchQuery: (query: string) => void;
   hideSuspicious: boolean;
   setHideSuspicious: (value: boolean) => void;
+  sortField: ClawHubSortField;
+  setSortField: (field: ClawHubSortField) => void;
+  sortDir: ClawHubSortDir;
+  setSortDir: (dir: ClawHubSortDir) => void;
+  hasMore: boolean;
+  loadMore: () => void;
   refresh: () => void;
   loadSkillDetail: (slug: string) => Promise<ClawHubSkillPackageDetail>;
+  loadSkillFile: (slug: string, path: string) => Promise<string>;
 };
 
 const DEBOUNCE_MS = 350;
+const PAGE_SIZE = 25;
 
-export function useClawHubSkills(): UseClawHubSkillsResult {
+export function useClawHubSkills(initial?: {
+  query?: string;
+  sort?: ClawHubSortField;
+  hideSuspicious?: boolean;
+}): UseClawHubSkillsResult {
   const [skills, setSkills] = React.useState<ClawHubSkillItem[]>([]);
   const [loading, setLoading] = React.useState(true);
+  const [loadingMore, setLoadingMore] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
-  const [searchQuery, setSearchQuery] = React.useState("");
-  const [hideSuspicious, setHideSuspicious] = React.useState(true);
+  const [searchQuery, setSearchQuery] = React.useState(initial?.query ?? "");
+  const [hideSuspicious, setHideSuspicious] = React.useState(initial?.hideSuspicious ?? true);
+  const [sortField, setSortField] = React.useState<ClawHubSortField>(initial?.sort ?? "downloads");
+  const [sortDir, setSortDir] = React.useState<ClawHubSortDir>("desc");
+  const [page, setPage] = React.useState(1);
+  const [totalPages, setTotalPages] = React.useState(0);
   const [refreshKey, setRefreshKey] = React.useState(0);
   const debounceRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  const hasMore = page < totalPages;
+
   const refresh = React.useCallback(() => {
+    setPage(1);
     setRefreshKey((k) => k + 1);
   }, []);
+
+  React.useEffect(() => {
+    setPage(1);
+  }, [searchQuery, hideSuspicious, sortField, sortDir]);
 
   React.useEffect(() => {
     let cancelled = false;
 
     const load = async () => {
-      setLoading(true);
+      const isFirstPage = page === 1;
+      if (isFirstPage) {
+        setLoading(true);
+      } else {
+        setLoadingMore(true);
+      }
       setError(null);
+
       try {
         const api = getDesktopApi();
         const query = searchQuery.trim();
 
         if (query) {
-          const result = await api.clawhubSearchSkills({
-            query,
-            limit: 50,
-            nonSuspicious: hideSuspicious,
-          });
+          const result = await api.clawhubSearchSkills({ query, limit: 50 });
           if (cancelled) return;
           if (!result.ok) {
             setError(result.error ?? "Search failed");
             setSkills([]);
+            setTotalPages(0);
             return;
           }
-          setSkills(
-            result.results.map((r) => ({
-              slug: r.slug,
-              displayName: r.displayName,
-              summary: r.summary,
-              latestVersion: r.latestVersion,
-              createdAt: r.createdAt,
-              updatedAt: r.updatedAt,
-              ownerHandle: r.ownerHandle,
-              channel: r.channel,
-              isOfficial: r.isOfficial,
-              verificationTier: r.verificationTier,
-              executesCode: r.executesCode,
-              capabilityTags: r.capabilityTags,
-              runtimeId: r.runtimeId,
-            }))
-          );
+          setSkills(result.results as ClawHubSkillItem[]);
+          setTotalPages(1);
         } else {
           const result = await api.clawhubListSkills({
-            limit: 50,
+            page,
+            limit: PAGE_SIZE,
+            sort: sortField,
+            dir: sortDir,
             nonSuspicious: hideSuspicious,
           });
           if (cancelled) return;
           if (!result.ok) {
             setError(result.error ?? "Failed to load skills");
-            setSkills([]);
+            if (isFirstPage) setSkills([]);
+            setTotalPages(0);
             return;
           }
-          setSkills(
-            result.items.map((item) => ({
-              slug: item.slug,
-              displayName: item.displayName,
-              summary: item.summary,
-              latestVersion: item.latestVersion,
-              createdAt: item.createdAt,
-              updatedAt: item.updatedAt,
-              ownerHandle: item.ownerHandle,
-              channel: item.channel,
-              isOfficial: item.isOfficial,
-              verificationTier: item.verificationTier,
-              executesCode: item.executesCode,
-              capabilityTags: item.capabilityTags,
-              runtimeId: item.runtimeId,
-            }))
-          );
+          setTotalPages(result.totalPages);
+          if (isFirstPage) {
+            setSkills(result.items as ClawHubSkillItem[]);
+          } else {
+            setSkills((prev) => [...prev, ...(result.items as ClawHubSkillItem[])]);
+          }
         }
       } catch (err) {
         if (cancelled) return;
         setError(err instanceof Error ? err.message : String(err));
-        setSkills([]);
+        if (page === 1) setSkills([]);
       } finally {
         if (!cancelled) {
           setLoading(false);
+          setLoadingMore(false);
         }
       }
     };
@@ -187,7 +257,13 @@ export function useClawHubSkills(): UseClawHubSkillsResult {
         clearTimeout(debounceRef.current);
       }
     };
-  }, [hideSuspicious, searchQuery, refreshKey]);
+  }, [hideSuspicious, searchQuery, sortField, sortDir, page, refreshKey]);
+
+  const loadMore = React.useCallback(() => {
+    if (hasMore && !loading && !loadingMore) {
+      setPage((p) => p + 1);
+    }
+  }, [hasMore, loading, loadingMore]);
 
   const loadSkillDetail = React.useCallback(async (slug: string) => {
     const api = getDesktopApi();
@@ -195,18 +271,35 @@ export function useClawHubSkills(): UseClawHubSkillsResult {
     if (!result.ok || !result.package) {
       throw new Error(result.error ?? `Failed to load "${slug}"`);
     }
-    return result.package;
+    return result.package as ClawHubSkillPackageDetail;
+  }, []);
+
+  const loadSkillFile = React.useCallback(async (slug: string, path: string) => {
+    const api = getDesktopApi();
+    const result = await api.clawhubGetSkillFile({ slug, path });
+    if (!result.ok || !result.content) {
+      throw new Error(result.error ?? `Failed to load file "${path}" for "${slug}"`);
+    }
+    return result.content;
   }, []);
 
   return {
     skills,
     loading,
+    loadingMore,
     error,
     searchQuery,
     setSearchQuery,
     hideSuspicious,
     setHideSuspicious,
+    sortField,
+    setSortField,
+    sortDir,
+    setSortDir,
+    hasMore,
+    loadMore,
     refresh,
     loadSkillDetail,
+    loadSkillFile,
   };
 }

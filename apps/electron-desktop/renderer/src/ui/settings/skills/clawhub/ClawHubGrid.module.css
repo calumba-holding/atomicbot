@@ -1,3 +1,5 @@
+/* ClawHub-specific card additions (base styles come from global skill-cards.css) */
+
 .UiClawHubLoading {
   display: flex;
   align-items: center;
@@ -12,7 +14,7 @@
   align-items: center;
   justify-content: center;
   padding: 32px 24px;
-  color: var(--danger, #d14343);
+  color: var(--error);
   font-size: 14px;
   text-align: center;
 }
@@ -37,152 +39,121 @@
   opacity: 0.7;
 }
 
-.UiClawHubVersionBadge {
-  font-size: 10px;
-  font-weight: 500;
-  color: var(--muted2);
-  background: var(--surface-overlay-subtle);
-  border-radius: var(--radius-full);
-  padding: 1px 6px;
-  white-space: nowrap;
-}
-
-.UiClawHubInstallBtn {
-  appearance: none;
-  border: none;
-  background: var(--lime, #c2ff40);
-  color: var(--surface-secondary, #1a1a1a);
-  border-radius: var(--radius-full);
-  padding: 4px 10px;
-  font-size: 12px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: opacity var(--transition-base);
-  white-space: nowrap;
-  flex-shrink: 0;
-}
-
-.UiClawHubInstallBtn--danger {
-  background: rgba(209, 67, 67, 0.18);
-  color: rgba(255, 188, 188, 0.95);
-}
-
-.UiClawHubInstallBtn:hover {
-  opacity: 0.85;
-}
-
-.UiClawHubInstallBtn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.UiClawHubCardMeta {
-  display: flex;
-  align-items: flex-start;
-  gap: 8px;
-  justify-content: flex-end;
-  flex-shrink: 0;
-}
-
 .UiClawHubCard {
   cursor: pointer;
-  display: flex;
-  flex-direction: column;
-  min-height: 0;
-  height: auto;
-  overflow: hidden;
+  position: relative;
 }
 
 .UiClawHubCard:hover {
   border-color: rgba(255, 255, 255, 0.14);
 }
 
-.UiClawHubCardHeader {
+.UiClawHubBadgeRow {
   display: flex;
-  flex-direction: column;
-  gap: 3px;
-  flex: 1;
-  min-width: 0;
+  gap: 6px;
 }
 
-.UiClawHubTitle {
-  font-weight: 500;
-  font-size: 14px;
-  line-height: 18px;
-  color: #ffffff;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  min-height: 0;
-}
-
-.UiClawHubOwnerText {
-  font-size: 11px;
-  color: var(--muted2);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.UiClawHubDescription {
-  font-weight: 400;
-  font-size: 12px;
-  line-height: 1.4;
-  color: #8e8e8e;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  min-height: 0;
-  margin-top: 0;
-}
-
-.UiClawHubMetaLine {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 4px;
-  margin-top: 10px;
-  padding-top: 0;
-}
-
-.UiClawHubMetaText {
-  font-size: 11px;
-  color: var(--muted2);
-  margin-left: auto;
-  text-align: right;
-  white-space: nowrap;
-}
-
-.UiClawHubBadge {
+.UiClawHubFeaturedBadge {
   font-size: 10px;
-  font-weight: 500;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #fff;
+  background: var(--accent, #e0540a);
   border-radius: var(--radius-full);
-  padding: 1px 6px;
+  padding: 2px 8px;
+}
+
+.UiClawHubOfficialBadge {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: rgba(147, 197, 253, 0.95);
+  background: rgba(59, 130, 246, 0.16);
+  border-radius: var(--radius-full);
+  padding: 2px 8px;
+}
+
+.UiClawHubFooter {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.UiClawHubFooterLeft {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.UiClawHubAuthor {
+  font-size: 11px;
+  color: var(--muted2);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.UiClawHubStat {
+  font-size: 11px;
+  color: var(--muted2);
   white-space: nowrap;
 }
 
-.UiClawHubBadge--official {
-  background: rgba(59, 130, 246, 0.16);
-  color: rgba(147, 197, 253, 0.95);
+.UiClawHubInstallBtn {
+  background: var(--lime) !important;
+  color: var(--surface-secondary) !important;
 }
 
-.UiClawHubBadge--community {
-  background: rgba(255, 255, 255, 0.08);
-  color: rgba(230, 237, 243, 0.75);
+.UiClawHubRemoveBtn {
+  background: rgba(209, 67, 67, 0.18) !important;
+  color: rgba(255, 188, 188, 0.95) !important;
 }
 
-.UiClawHubBadge--verified {
-  background: rgba(34, 197, 94, 0.12);
-  color: rgba(74, 222, 128, 0.95);
+/* Infinite scroll sentinel */
+.UiClawHubScrollSentinel {
+  display: flex;
+  justify-content: center;
+  padding: 24px 0;
+  min-height: 48px;
 }
 
-.UiClawHubBadge--code {
-  background: rgba(245, 158, 11, 0.12);
-  color: rgba(251, 191, 36, 0.95);
+.UiClawHubLoadingMore {
+  font-size: 13px;
+  color: var(--muted2);
+}
+
+/* ── Skeleton ── */
+
+@keyframes skelPulse {
+  0%,
+  100% {
+    opacity: 0.35;
+  }
+  50% {
+    opacity: 0.15;
+  }
+}
+
+.UiSkelBar {
+  display: inline-block;
+  border-radius: 4px;
+  background: rgba(230, 237, 243, 0.12);
+  animation: skelPulse 1.6s ease-in-out infinite;
+  vertical-align: middle;
+}
+
+.UiSkelCircle {
+  display: inline-block;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: rgba(230, 237, 243, 0.12);
+  animation: skelPulse 1.6s ease-in-out infinite;
+  flex-shrink: 0;
 }
